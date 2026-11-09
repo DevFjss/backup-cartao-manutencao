@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Gestão - Backup Cartão Manutenção</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Bibliotecas de exportação (também são recarregadas automaticamente na hora de exportar, se falharem aqui) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root{
+            --theme-primary:#173f78;--theme-primary-hover:#22599d;
+            --theme-bg:#f3f6fb;--theme-card-bg:#fff;--theme-text:#172b4d;
+            --theme-header-bg:#173f78;--theme-header-text:#fff;
+            --theme-border:#dce4ef;--theme-row-hover:#f2f7ff;
+            --theme-selected:#e3efff;--theme-table-bg:#fff;
+            --muted:#718096;--shadow:0 8px 28px rgba(24,48,82,.07);
+        }
+        body.theme-green{--theme-primary:#16734a;--theme-primary-hover:#19875a;--theme-header-bg:#145b3d;--theme-row-hover:#effaf4;--theme-selected:#d9f3e4;--theme-bg:#f2f8f4}
+        body.theme-gray{--theme-primary:#475569;--theme-primary-hover:#334155;--theme-header-bg:#334155;--theme-row-hover:#f1f5f9;--theme-selected:#e2e8f0;--theme-bg:#f4f6f8}
+        body.theme-black{--theme-primary:#334155;--theme-primary-hover:#475569;--theme-header-bg:#172033;--theme-header-text:#fff;--theme-row-hover:#253247;--theme-selected:#34445e;--theme-bg:#0b1220;--theme-card-bg:#121d30;--theme-table-bg:#121d30;--theme-text:#e5edf8;--theme-border:#2a3951}
+        body.theme-light{--theme-primary:#64748b;--theme-primary-hover:#475569;--theme-header-bg:#e2e8f0;--theme-header-text:#172b4d;--theme-row-hover:#f1f5f9;--theme-selected:#e2e8f0;--theme-bg:#fff;--theme-card-bg:#f8fafc;--theme-table-bg:#fff;--theme-text:#172b4d;--theme-border:#d7e0ea}
+        body.theme-orange{--theme-primary:#c05621;--theme-primary-hover:#dd6b20;--theme-header-bg:#9a3412;--theme-row-hover:#fff7ed;--theme-selected:#ffedd5;--theme-bg:#fff8f2}
+        *{box-sizing:border-box}
+        body{background:var(--theme-bg);color:var(--theme-text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;transition:background .2s,color .2s}
+        .dynamic-bg{background:var(--theme-primary)!important}.dynamic-bg:hover{background:var(--theme-primary-hover)!important}
+        .dynamic-text{color:var(--theme-primary)!important}.dynamic-border{border-color:var(--theme-border)!important}
+        .dynamic-card{background:var(--theme-card-bg)!important;border-color:var(--theme-border)!important;color:var(--theme-text)!important}
+        .app-shell{max-width:1900px;margin:0 auto;width:100%}
+        .hero{background:linear-gradient(120deg,#102f59 0%,#1c4d86 58%,#2c659d 100%);color:#fff;border-radius:22px;padding:24px 26px;box-shadow:0 14px 34px rgba(17,54,96,.18);position:relative;overflow:hidden}
+        .hero:after{content:"";position:absolute;width:280px;height:280px;border:1px solid rgba(255,255,255,.12);border-radius:50%;right:-70px;top:-150px;box-shadow:0 0 0 35px rgba(255,255,255,.035),0 0 0 70px rgba(255,255,255,.025);pointer-events:none}
+        .hero-content{position:relative;z-index:1}
+        .eyebrow{font-size:10px;font-weight:800;letter-spacing:.17em;text-transform:uppercase;color:#bfdbfe}
+        .hero h1{font-size:clamp(21px,3vw,30px);font-weight:800;letter-spacing:-.035em;line-height:1.15}
+        .hero-sub{font-size:12px;color:#dbeafe;margin-top:7px}
+        .theme-switch{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);padding:9px 12px;border-radius:12px}
+        .theme-switch button{width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.8);transition:transform .15s}
+        .theme-switch button:hover{transform:scale(1.2)}
+        .actionbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--theme-card-bg);border:1px solid var(--theme-border);border-radius:16px;padding:12px;box-shadow:var(--shadow)}
+        .action-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 12px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid var(--theme-border);transition:.15s;white-space:nowrap;cursor:pointer}
+        .action-btn:hover{transform:translateY(-1px);filter:brightness(.97)}
+        .action-btn:disabled{opacity:.6;cursor:wait}
+        .action-btn.primary{background:var(--theme-primary);border-color:var(--theme-primary);color:#fff}
+        .action-btn.excel{background:#16804a;border-color:#16804a;color:#fff}
+        .action-btn.pdf{background:#bd3545;border-color:#bd3545;color:#fff}
+        .search-wrap{position:relative;flex:1;min-width:230px}
+        .search-wrap i.lead{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#8292a8}
+        .search-wrap input{width:100%;border:1px solid var(--theme-border);background:var(--theme-bg);color:var(--theme-text);border-radius:11px;padding:10px 38px 10px 37px;font-size:12px;outline:none}
+        .search-wrap input:focus{border-color:var(--theme-primary);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+        .search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);padding:4px 6px;color:#8292a8}
+        .kpi-card{position:relative;overflow:hidden;background:var(--theme-card-bg);border:1px solid var(--theme-border);border-radius:17px;padding:17px 18px;box-shadow:var(--shadow);min-height:112px}
+        .kpi-card:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;right:-30px;bottom:-48px;background:var(--kpi-tint,rgba(37,99,235,.07))}
+        .kpi-label{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+        .kpi-value{font-size:clamp(19px,2vw,25px);font-weight:850;letter-spacing:-.04em;margin-top:8px;line-height:1.1}
+        .kpi-icon{width:35px;height:35px;border-radius:11px;display:grid;place-items:center;color:#fff;background:var(--kpi-color,#245a94)}
+        .table-panel{background:var(--theme-card-bg);border:1px solid var(--theme-border);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+        .table-panel-head{padding:15px 18px;border-bottom:1px solid var(--theme-border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+        .table-panel-title{font-size:14px;font-weight:800;letter-spacing:-.02em}
+        .table-panel-sub{font-size:11px;color:var(--muted);margin-top:3px}
+        .table-meta{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:7px}
+        .status-dot{width:7px;height:7px;border-radius:50%;background:#22a06b;display:inline-block}
+        .active-filter-strip{display:flex;gap:7px;flex-wrap:wrap;padding:9px 18px;border-bottom:1px solid var(--theme-border);background:rgba(120,145,175,.045);font-size:10px}
+        .filter-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:99px;background:#e8f1fc;color:#214e7e;font-weight:700}
+        .filter-chip button{margin-left:2px}
+        body.theme-black .filter-chip{background:#263a55;color:#dbeafe}
+
+        /* ===== TABELA: layout fixo + <colgroup> = redimensionamento real e rápido ===== */
+        #main-table{table-layout:fixed;border-collapse:collapse;background:var(--theme-table-bg);width:max-content}
+        #main-table thead th{background:var(--theme-header-bg)!important;color:var(--theme-header-text,#fff)!important;position:sticky;top:0;z-index:10;overflow:hidden;user-select:none;white-space:nowrap}
+        #main-table th.col-checkbox,#main-table td.col-checkbox{position:sticky;left:0;z-index:12}
+        #main-table thead th.col-checkbox{background:var(--theme-header-bg)!important;z-index:14}
+        #main-table tbody td.col-checkbox{background:var(--theme-table-bg)!important}
+        #main-table tbody tr:hover td.col-checkbox{background:var(--theme-row-hover)!important}
+        #main-table tbody tr.selected-row td.col-checkbox{background:var(--theme-selected)!important}
+        #main-table thead th .th-inner{display:flex;align-items:center;justify-content:space-between;gap:4px;overflow:hidden;white-space:nowrap;cursor:pointer}
+        #main-table thead th .th-inner .col-title{flex:1;overflow:hidden;text-overflow:ellipsis}
+        #main-table thead th .col-resizer{position:absolute;top:0;right:0;width:9px;height:100%;cursor:col-resize;background:transparent;z-index:20;touch-action:none}
+        #main-table thead th .col-resizer:hover,#main-table thead th .col-resizer.active{background:rgba(255,255,255,.5)}
+        #main-table tbody tr{background:var(--theme-table-bg)!important;color:var(--theme-text)!important}
+        #main-table tbody tr:hover{background:var(--theme-row-hover)!important}
+        #main-table tbody tr.selected-row{background:var(--theme-selected)!important}
+        #main-table tbody td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-color:var(--theme-border)!important}
+        #main-table thead th.dragging{opacity:.5}#main-table thead th.drag-over{box-shadow:inset 3px 0 0 #fbbf24}
+        #main-table thead th[draggable=true]{cursor:grab}#main-table thead th[draggable=true]:active{cursor:grabbing}
+        body.resizing{cursor:col-resize!important;user-select:none!important}
+        .sort-icon{font-size:10px;margin-left:3px;opacity:.9}.filter-active-icon{color:#facc15!important;font-weight:bold}
+        .filter-popover,.columns-popover{resize:both;overflow:auto;min-width:280px;min-height:240px;width:320px;height:400px;background:var(--theme-card-bg)!important;color:var(--theme-text)!important;border-color:var(--theme-border)!important;border-radius:14px}
+        .table-scroll{overflow:auto;max-height:68vh;position:relative}
+        .table-footer{padding:11px 18px;border-top:1px solid var(--theme-border);font-size:10px;color:var(--muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+        #toast{position:fixed;bottom:22px;right:22px;z-index:100;background:#172033;color:#fff;font-size:12px;font-weight:600;padding:11px 16px;border-radius:11px;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;max-width:360px}
+        #toast.show{opacity:1;transform:none}
+        #toast.error{background:#bd3545}
+        @media(max-width:700px){body{padding:10px!important}.hero{padding:19px;border-radius:17px}.theme-switch{margin-top:12px}.actionbar{padding:9px}.action-btn{padding:8px 10px}.table-scroll{max-height:65vh}.kpi-card{padding:14px;min-height:100px}}
+    </style>
+</head>
+<body class="min-h-screen flex flex-col w-full m-0 p-5">
+
+    <div class="app-shell flex flex-col gap-5">
+        <header class="hero">
+            <div class="hero-content flex flex-wrap items-center justify-between gap-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-white/15 border border-white/20 grid place-items-center shadow-lg">
+                        <i class="fa-solid fa-box-archive text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="eyebrow">Central de dados • CDF</div>
+                        <h1>Painel de Backup</h1>
+                        <p class="hero-sub"><i class="fa-solid fa-database mr-1"></i> Cartão Manutenção <span class="mx-1 opacity-50">/</span> Tabela: backup_cartao_manut</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="theme-switch">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-blue-100 mr-1">Tema</span>
+                        <button onclick="setTheme('blue')" title="Azul" style="background:#1d4ed8"></button>
+                        <button onclick="setTheme('green')" title="Verde" style="background:#15803d"></button>
+                        <button onclick="setTheme('gray')" title="Cinza" style="background:#475569"></button>
+                        <button onclick="setTheme('black')" title="Escuro" style="background:#0f172a"></button>
+                        <button onclick="setTheme('light')" title="Claro" style="background:#e2e8f0"></button>
+                        <button onclick="setTheme('orange')" title="Laranja" style="background:#ea580c"></button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="actionbar">
+            <div class="search-wrap">
+                <i class="fa-solid fa-magnifying-glass lead"></i>
+                <input id="global-search" type="search" placeholder="Pesquisar em todos os campos: escola, município, CPF, cartão, remessa..." oninput="applyGlobalSearch(this.value)">
+                <button class="search-clear" type="button" onclick="clearGlobalSearch()" title="Limpar pesquisa"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <button onclick="openColumnsPanel(event)" class="action-btn"><i class="fa-solid fa-table-columns"></i> Colunas</button>
+            <button onclick="autoFitColumns()" class="action-btn"><i class="fa-solid fa-arrows-left-right-to-line"></i> Ajustar</button>
+            <button onclick="clearAllFilters()" class="action-btn"><i class="fa-solid fa-filter-circle-xmark"></i> Limpar filtros</button>
+            <button onclick="loadSupabaseData()" class="action-btn primary"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+            <button id="btn-excel" onclick="exportToExcel()" class="action-btn excel"><i class="fa-solid fa-file-excel"></i> Excel</button>
+            <button id="btn-pdf" onclick="exportToPDF()" class="action-btn pdf"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+        </section>
+
+        <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div class="kpi-card" style="--kpi-color:#245a94;--kpi-tint:rgba(36,90,148,.16);background:linear-gradient(135deg,rgba(36,90,148,.14),rgba(255,255,255,.96))">
+                <div class="flex items-start justify-between gap-3"><div><p class="kpi-label">Registros no painel</p><h3 id="card-total-count" class="kpi-value">0</h3><span id="card-selected-count" class="text-[10px] text-slate-500 mt-2 block">0 selecionados</span></div><div class="kpi-icon"><i class="fa-solid fa-layer-group"></i></div></div>
+            </div>
+            <div class="kpi-card" style="--kpi-color:#16804a;--kpi-tint:rgba(22,128,74,.16);background:linear-gradient(135deg,rgba(22,128,74,.14),rgba(255,255,255,.96))">
+                <div class="flex items-start justify-between gap-3"><div><p class="kpi-label">Valor banco</p><h3 id="card-valor-banco" class="kpi-value">R$ 0,00</h3><span class="text-[10px] text-slate-500 mt-2 block">Total considerado</span></div><div class="kpi-icon"><i class="fa-solid fa-building-columns"></i></div></div>
+            </div>
+            <div class="kpi-card" style="--kpi-color:#2876c7;--kpi-tint:rgba(40,118,199,.16);background:linear-gradient(135deg,rgba(40,118,199,.14),rgba(255,255,255,.96))">
+                <div class="flex items-start justify-between gap-3"><div><p class="kpi-label">Valor custeio</p><h3 id="card-valor-custeio" class="kpi-value">R$ 0,00</h3><span class="text-[10px] text-slate-500 mt-2 block">Total considerado</span></div><div class="kpi-icon"><i class="fa-solid fa-wallet"></i></div></div>
+            </div>
+            <div class="kpi-card" style="--kpi-color:#7953b5;--kpi-tint:rgba(121,83,181,.16);background:linear-gradient(135deg,rgba(121,83,181,.14),rgba(255,255,255,.96))">
+                <div class="flex items-start justify-between gap-3"><div><p class="kpi-label">Valor capital</p><h3 id="card-valor-capital" class="kpi-value">R$ 0,00</h3><span class="text-[10px] text-slate-500 mt-2 block">Total considerado</span></div><div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div></div>
+            </div>
+            <div class="kpi-card" style="--kpi-color:#c05621;--kpi-tint:rgba(192,86,33,.18);background:linear-gradient(135deg,rgba(192,86,33,.16),rgba(255,255,255,.96))">
+                <div class="flex items-start justify-between gap-3"><div><p class="kpi-label">Custeio + capital</p><h3 id="card-total-custeio-capital" class="kpi-value">R$ 0,00</h3><span class="text-[10px] text-slate-500 mt-2 block">Total de investimentos</span></div><div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div></div>
+            </div>
+        </section>
+
+        <main class="table-panel flex-1 flex flex-col min-w-0 mb-2">
+            <div class="table-panel-head">
+                <div>
+                    <div class="flex items-center gap-2"><span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-800 grid place-items-center"><i class="fa-solid fa-table-list"></i></span><h2 class="table-panel-title">Base de registros</h2></div>
+                    <p class="table-panel-sub">Consulte, filtre, ordene e gerencie os dados armazenados no backup. Marque linhas para exportar só as selecionadas.</p>
+                </div>
+                <div class="table-meta"><span class="status-dot"></span><span id="table-connection-status">Painel conectado</span><span class="opacity-40">•</span><span id="active-filter-count">0 filtros ativos</span></div>
+            </div>
+            <div id="active-filter-strip" class="active-filter-strip">
+                <span class="text-slate-500">Dica: use a pesquisa geral ou o ícone de filtro em cada coluna.</span>
+            </div>
+            <div class="table-scroll flex-1" id="table-scroll">
+                <table id="main-table" class="text-left text-xs whitespace-nowrap">
+                    <colgroup id="table-cols"></colgroup>
+                    <thead><tr id="table-header-row"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+            <div id="table-footer-status" class="table-footer">
+                <span id="rows-count-label">Carregando dados...</span>
+                <span><i class="fa-solid fa-arrow-up-down-left-right mr-1"></i> Arraste o título para reordenar • Clique para ordenar • Arraste a borda direita do título para redimensionar</span>
+            </div>
+        </main>
+    </div>
+
+    <div id="edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 items-center justify-center p-4" style="display:none">
+        <div class="dynamic-card w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border p-6">
+            <div class="flex justify-between items-center pb-4 mb-4 border-b dynamic-border">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square dynamic-text"></i> Editar Registro no Supabase
+                </h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-red-500 text-xl font-bold">&times;</button>
+            </div>
+            <form id="edit-form" onsubmit="saveEditRecord(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4"></form>
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t dynamic-border">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm rounded-lg border dynamic-border hover:bg-black/5 font-medium">Cancelar</button>
+                <button type="submit" form="edit-form" class="px-5 py-2 text-sm rounded-lg dynamic-bg text-white font-medium shadow hover:opacity-90">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        const SUPABASE_URL = "https://vsubudeifwpdzxwoayij.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_vrBHcx43pZg3MWhYv8Wl-w_hd09KwTP";
+        const TABLE_NAME = "backup_cartao_manut";
+        // v2: descarta larguras salvas pela versão antiga (que não funcionava)
+        const COL_WIDTHS_KEY = "supabase_panel_col_widths_v2";
+        const VISIBLE_COLS_KEY = "supabase_panel_visible_cols_v2";
+        const COL_ORDER_KEY = "supabase_panel_col_order_v2";
+
+        const CHECK_COL_W = 40;
+        const ACTIONS_COL_W = 84;
+        const MIN_COL_W = 50;
+        const PAGE_SIZE = 250;          // linhas desenhadas por vez (rolagem infinita)
+        const FETCH_PAGE = 1000;        // limite por requisição do Supabase
+
+        const VALUE_COLUMNS = ['VALOR_BANCO', 'VALOR_CUSTEIO', 'VALOR_CAPITAL'];
+
+        const ORIGINAL_COLUMNS = [
+            "id", "nte", "municipio", "cod_sec", "centro_de_custo", "cod_inep",
+            "nome_da_unidade_escolar", "diretor_a", "id_ct_custo", "n_do_cartao",
+            "cpf", "valor_banco", "valor_custeio", "valor_capital", "remessa",
+            "data", "finalidade", "n_processo_sei", "codigo_acao", "n_empenho",
+            "subfonte_deputado", "deputado", "uab_polo_poliesportivo"
+        ];
+
+        let supabaseClient = null;
+        let rawData = [];
+        let filteredData = [];
+        let allColumns = [];
+        let visibleColumns = [];
+        let activeFilters = {};
+        let selectedRowIds = new Set();
+        let currentEditingRow = null;
+        let colWidths = {};
+        let sortColumn = null;
+        let sortDirection = null;
+        let globalSearchTerm = "";
+        let renderedCount = 0;
+        let searchTimer = null;
+
+        // ========= UTILITÁRIOS =========
+        function normalizeText(str) {
+            if (str === null || str === undefined) return "";
+            return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        }
+        function escapeHtml(v) {
+            return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        }
+        function toast(msg, isError = false, ms = 3500) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'show' + (isError ? ' error' : '');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => { el.className = ''; }, ms);
+        }
+        function parseBRNumber(value) {
+            if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+            if (value === null || value === undefined || value === '') return 0;
+            let text = String(value).trim().replace(/R\$\s?/g, '').replace(/\s/g, '');
+            // Dados brasileiros: 4.700,00 -> 4700; dados decimais do banco: 4700.00 -> 4700.
+            if (text.includes(',')) text = text.replace(/\./g, '').replace(',', '.');
+            else if (/^-?\d{1,3}(\.\d{3})+$/.test(text)) text = text.replace(/\./g, '');
+            const number = Number(text.replace(/[^\d.-]/g, ''));
+            return Number.isFinite(number) ? number : 0;
+        }
+        function fmtBRL(n) {
+            return parseBRNumber(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // ========= INÍCIO =========
+        document.addEventListener("DOMContentLoaded", () => {
+            initTheme();
+
+            try { colWidths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || "{}") || {}; }
+            catch (e) { colWidths = {}; }
+
+            document.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-popover, .columns-popover').forEach(pop => {
+                    if (!pop.contains(e.target) && !(pop._opener && pop._opener.contains(e.target))) pop.remove();
+                });
+            });
+
+            setupTableEvents();
+
+            if (SUPABASE_URL && SUPABASE_KEY) {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                loadSupabaseData();
+            } else {
+                alert("Erro: Credenciais do Supabase não configuradas no código.");
+            }
+        });
+
+        // Eventos delegados (rápido: um único listener para todas as linhas)
+        function setupTableEvents() {
+            const tbody = document.getElementById('table-body');
+            const scroller = document.getElementById('table-scroll');
+            const headerRow = document.getElementById('table-header-row');
+
+            tbody.addEventListener('change', (e) => {
+                const cb = e.target.closest('.row-checkbox');
+                if (!cb) return;
+                const tr = cb.closest('tr');
+                const uid = tr.getAttribute('data-uid');
+                if (cb.checked) { selectedRowIds.add(uid); tr.classList.add('selected-row'); }
+                else { selectedRowIds.delete(uid); tr.classList.remove('selected-row'); }
+                syncSelectAllState();
+                updateCards();
+            });
+
+            tbody.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const uid = btn.closest('tr').getAttribute('data-uid');
+                if (btn.dataset.action === 'edit') openEditModalForRow(uid);
+                else if (btn.dataset.action === 'delete') deleteRowFromSupabase(uid);
+            });
+
+            // Rolagem infinita: desenha mais linhas ao chegar perto do fim
+            scroller.addEventListener('scroll', () => {
+                if (renderedCount < filteredData.length &&
+                    scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 400) {
+                    appendRows();
+                }
+            }, { passive: true });
+
+            // Redimensionamento (pointer events: mouse, toque e caneta)
+            headerRow.addEventListener('pointerdown', onResizeStart);
+        }
+
+        // ========= TEMA =========
+        function setTheme(themeName) {
+            [...document.body.classList].forEach(c => { if (c.startsWith('theme-')) document.body.classList.remove(c); });
+            document.body.classList.add(`theme-${themeName}`);
+            try { localStorage.setItem('supabase_panel_theme', themeName); } catch (e) {}
+        }
+        function initTheme() {
+            let t = 'blue';
+            try { t = localStorage.getItem('supabase_panel_theme') || 'blue'; } catch (e) {}
+            setTheme(t);
+        }
+
+        // ========= FORMATADORES =========
+        function formatDateToBR(dateInput) {
+            if (dateInput === null || dateInput === undefined) return "";
+            const str = String(dateInput).trim();
+            if (!str) return "";
+            let m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/);
+            if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+            m = str.match(/^(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})$/);
+            if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+            return str;
+        }
+        function formatBRToISO(dateStr) {
+            if (!dateStr) return null;
+            const parts = String(dateStr).trim().split('/');
+            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            return dateStr;
+        }
+        function getFormattedValue(row, col) {
+            const val = row[col];
+            if (val === undefined || val === null || String(val).trim() === "") return "(Vazio)";
+            if (col === 'DATA') return formatDateToBR(val) || "(Vazio)";
+            return String(val).trim();
+        }
+        function getDisplayValue(row, col) {
+            let val = row[col] !== undefined && row[col] !== null ? row[col] : "";
+            if (col === 'DATA') return formatDateToBR(val);
+            if (VALUE_COLUMNS.includes(col) && val !== "") {
+                const num = parseBRNumber(val);
+                if (Number.isFinite(num)) return fmtBRL(num);
+            }
+            return String(val);
+        }
+
+        // ========= SUPABASE DATA =========
+        async function fetchAllRows() {
+            const all = [];
+            let from = 0;
+            let useOrder = true;
+            while (true) {
+                let q = supabaseClient.from(TABLE_NAME).select('*');
+                if (useOrder) q = q.order('id', { ascending: true });
+                let { data, error } = await q.range(from, from + FETCH_PAGE - 1);
+                if (error && useOrder) {            // tabela sem coluna "id": tenta sem ordenação
+                    useOrder = false;
+                    ({ data, error } = await supabaseClient.from(TABLE_NAME).select('*').range(from, from + FETCH_PAGE - 1));
+                }
+                if (error) throw error;
+                all.push(...(data || []));
+                document.getElementById('rows-count-label').innerText = `Carregando dados do Supabase... ${all.length.toLocaleString('pt-BR')} registros`;
+                if (!data || data.length < FETCH_PAGE) break;
+                from += FETCH_PAGE;
+            }
+            return all;
+        }
+
+        async function loadSupabaseData() {
+            try {
+                document.getElementById('rows-count-label').innerText = "Carregando dados do Supabase...";
+                const data = await fetchAllRows();
+
+                const detectedCols = new Set();
+                data.forEach(row => Object.keys(row).forEach(k => detectedCols.add(k.toUpperCase())));
+                const baseList = ORIGINAL_COLUMNS.map(c => c.toUpperCase());
+                allColumns = [...new Set([...baseList, ...detectedCols])];
+
+                try {
+                    const savedOrder = JSON.parse(localStorage.getItem(COL_ORDER_KEY) || "null");
+                    if (Array.isArray(savedOrder) && savedOrder.length) {
+                        const valid = savedOrder.filter(c => allColumns.includes(c));
+                        const missing = allColumns.filter(c => !valid.includes(c));
+                        visibleColumns = [...valid, ...missing];
+                    } else visibleColumns = [...allColumns];
+                } catch (e) { visibleColumns = [...allColumns]; }
+
+                if (visibleColumns.includes("ID")) visibleColumns = ["ID", ...visibleColumns.filter(c => c !== "ID")];
+
+                try {
+                    const savedVisible = JSON.parse(localStorage.getItem(VISIBLE_COLS_KEY) || "null");
+                    if (Array.isArray(savedVisible) && savedVisible.length) {
+                        const allowed = new Set(savedVisible);
+                        visibleColumns = visibleColumns.filter(c => allowed.has(c));
+                        // Mantém a nova coluna UAB-Polo visível mesmo com preferências antigas salvas.
+                        if (allColumns.includes("UAB_POLO_POLIESPORTIVO") && !visibleColumns.includes("UAB_POLO_POLIESPORTIVO")) {
+                            visibleColumns.push("UAB_POLO_POLIESPORTIVO");
+                        }
+                        if (visibleColumns.includes("ID")) visibleColumns = ["ID", ...visibleColumns.filter(c => c !== "ID")];
+                    }
+                } catch (e) {}
+                if (!visibleColumns.length) visibleColumns = [...allColumns];
+
+                rawData = data.map((row, index) => {
+                    const newRow = {};
+                    for (const key in row) newRow[key.toUpperCase()] = row[key];
+
+                    if (newRow.ID !== undefined && newRow.ID !== null && newRow.ID !== "") {
+                        newRow._uid = String(newRow.ID);
+                        newRow._pkField = "id";
+                        newRow._pkValue = newRow.ID;
+                    } else if (newRow.ID_CT_CUSTO !== undefined && newRow.ID_CT_CUSTO !== null && newRow.ID_CT_CUSTO !== "") {
+                        newRow._uid = "ctc_" + String(newRow.ID_CT_CUSTO) + "_" + index;
+                        newRow._pkField = "id_ct_custo";
+                        newRow._pkValue = newRow.ID_CT_CUSTO;
+                    } else {
+                        newRow._uid = "tmp_" + index;
+                        newRow._pkField = null;
+                        newRow._pkValue = null;
+                    }
+                    // Índice de pesquisa pré-calculado (pesquisa geral instantânea)
+                    newRow._search = normalizeText(Object.keys(row).map(k => {
+                        const v = row[k];
+                        return v === null || v === undefined ? "" : (k.toUpperCase() === 'DATA' ? formatDateToBR(v) + " " + v : v);
+                    }).join(" "));
+                    return newRow;
+                });
+
+                ensureColumnWidths();
+
+                const st = document.getElementById("table-connection-status");
+                if (st) st.textContent = "Dados atualizados";
+                selectedRowIds.clear();
+                renderTableHeaders();
+                applyFiltersAndRender();
+            } catch (err) {
+                console.error("Erro ao carregar Supabase:", err);
+                alert("Erro ao conectar ou carregar dados do Supabase: " + err.message);
+                document.getElementById('rows-count-label').innerText = "Erro ao carregar dados.";
+            }
+        }
+
+        // ========= LARGURAS DE COLUNA =========
+        function computeAutoWidth(col) {
+            let maxLen = col.length + 4;                      // espaço p/ ícones do cabeçalho
+            const limit = Math.min(rawData.length, 400);
+            for (let i = 0; i < limit; i++) {
+                const len = getDisplayValue(rawData[i], col).length;
+                if (len > maxLen) maxLen = len;
+            }
+            return Math.max(70, Math.min(380, Math.round(maxLen * 7.2 + 26)));
+        }
+        function ensureColumnWidths() {
+            allColumns.forEach(col => {
+                if (!colWidths[col]) colWidths[col] = computeAutoWidth(col);
+            });
+            saveWidths();
+        }
+        function saveWidths() {
+            try { localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(colWidths)); } catch (e) {}
+        }
+        function getColWidth(col) {
+            return colWidths[col] || 140;
+        }
+        function applyTableWidth() {
+            const table = document.getElementById('main-table');
+            let total = CHECK_COL_W + ACTIONS_COL_W;
+            visibleColumns.forEach(c => { total += getColWidth(c); });
+            table.style.width = total + 'px';
+        }
+        function autoFitColumns() {
+            colWidths = {};
+            allColumns.forEach(col => { colWidths[col] = computeAutoWidth(col); });
+            saveWidths();
+            renderTableHeaders();
+            renderTableBody();
+            toast("Largura das colunas ajustada ao conteúdo.");
+        }
+
+        // ========= ORDENAÇÃO =========
+        function toggleSort(column) {
+            if (sortColumn === column) {
+                if (sortDirection === 'asc') sortDirection = 'desc';
+                else { sortColumn = null; sortDirection = null; }
+            } else { sortColumn = column; sortDirection = 'asc'; }
+            applyFiltersAndRender();
+            renderTableHeaders();
+        }
+        function applySort(data) {
+            if (!sortColumn || !sortDirection) return data;
+            const col = sortColumn;
+            const dir = sortDirection === 'asc' ? 1 : -1;
+            const isNum = ['ID', 'VALOR_BANCO', 'VALOR_CUSTEIO', 'VALOR_CAPITAL', 'COD_INEP', 'N_DO_CARTAO'].includes(col);
+            return [...data].sort((a, b) => {
+                let va = a[col], vb = b[col];
+                if (va === null || va === undefined || va === "") va = null;
+                if (vb === null || vb === undefined || vb === "") vb = null;
+                if (va === null && vb === null) return 0;
+                if (va === null) return 1;
+                if (vb === null) return -1;
+                if (col === 'DATA') return (parseDateForSort(va) - parseDateForSort(vb)) * dir;
+                if (isNum) {
+            const na = parseBRNumber(va);
+            const nb = parseBRNumber(vb);
+                    return (na - nb) * dir;
+                }
+                return String(va).localeCompare(String(vb), 'pt-BR', { numeric: true, sensitivity: 'base' }) * dir;
+            });
+        }
+        function parseDateForSort(val) {
+            if (!val) return 0;
+            const str = String(val).trim();
+            let m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) return new Date(m[1], m[2] - 1, m[3]).getTime();
+            m = str.match(/^(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})/);
+            if (m) return new Date(m[3], m[2] - 1, m[1]).getTime();
+            return 0;
+        }
+
+        // ========= CABEÇALHOS =========
+        function renderTableHeaders() {
+            const headerRow = document.getElementById('table-header-row');
+            const colgroup = document.getElementById('table-cols');
+
+            let cg = `<col style="width:${CHECK_COL_W}px">`;
+            visibleColumns.forEach(col => { cg += `<col style="width:${getColWidth(col)}px">`; });
+            cg += `<col style="width:${ACTIONS_COL_W}px">`;
+            colgroup.innerHTML = cg;
+            applyTableWidth();
+
+            let html = `
+                <th class="p-2 text-center relative col-checkbox" data-col="__select__">
+                    <input type="checkbox" id="select-all-checkbox" onclick="toggleSelectAll(this)" class="rounded cursor-pointer" title="Selecionar todos os registros filtrados">
+                </th>`;
+
+            visibleColumns.forEach(col => {
+                const isSorted = sortColumn === col;
+                const isFiltered = activeFilters[col] && activeFilters[col].size > 0;
+                let sortIcon = '';
+                if (isSorted) sortIcon = sortDirection === 'asc' ? '<i class="fa-solid fa-sort-up sort-icon"></i>' : '<i class="fa-solid fa-sort-down sort-icon"></i>';
+                const filterIconClass = isFiltered ? "fa-solid fa-filter filter-active-icon text-[11px]" : "fa-solid fa-filter text-[10px]";
+                const c = escapeHtml(col);
+                html += `
+                    <th class="p-2 font-semibold relative" data-col="${c}" draggable="true">
+                        <div class="th-inner" data-sort="${c}">
+                            <span class="col-title" title="${c} (clique para ordenar • arraste para mover)">${c}${sortIcon}</span>
+                            <button type="button" data-filter="${c}" class="text-white/80 hover:text-white p-1 rounded hover:bg-white/20 shrink-0" title="Filtrar coluna ${c}">
+                                <i class="${filterIconClass}"></i>
+                            </button>
+                        </div>
+                        <div class="col-resizer" title="Arraste para redimensionar"></div>
+                    </th>`;
+            });
+            html += `<th class="p-2 text-center relative" data-col="__actions__">AÇÕES</th>`;
+            headerRow.innerHTML = html;
+
+            // Eventos do cabeçalho (delegados no ciclo de vida de cada render)
+            headerRow.querySelectorAll('.th-inner').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    if (e.target.closest('button')) return;
+                    toggleSort(el.getAttribute('data-sort'));
+                });
+            });
+            headerRow.querySelectorAll('button[data-filter]').forEach(btn => {
+                btn.addEventListener('click', (e) => openFilterDropdown(e, btn.getAttribute('data-filter')));
+            });
+            headerRow.querySelectorAll('th[draggable="true"]').forEach(th => {
+                th.addEventListener('dragstart', onColDragStart);
+                th.addEventListener('dragover', onColDragOver);
+                th.addEventListener('dragleave', onColDragLeave);
+                th.addEventListener('drop', onColDrop);
+                th.addEventListener('dragend', onColDragEnd);
+            });
+            syncSelectAllState();
+        }
+
+        // ========= REDIMENSIONAR COLUNAS =========
+        function onResizeStart(e) {
+            const handle = e.target.closest('.col-resizer');
+            if (!handle) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            const th = handle.closest('th');
+            const col = th.getAttribute('data-col');
+            const colEl = document.getElementById('table-cols').children[th.cellIndex];
+            if (!colEl || col === '__select__' || col === '__actions__') return;
+
+            const table = document.getElementById('main-table');
+            const startX = e.clientX;
+            const startW = th.getBoundingClientRect().width;
+            const startTableW = parseFloat(table.style.width) || table.getBoundingClientRect().width;
+            let raf = null, newW = startW;
+
+            th.draggable = false;                      // impede o "arrastar para mover" durante o resize
+            handle.classList.add('active');
+            document.body.classList.add('resizing');
+            try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+
+            function onMove(ev) {
+                newW = Math.max(MIN_COL_W, Math.round(startW + (ev.clientX - startX)));
+                if (raf) return;
+                raf = requestAnimationFrame(() => {
+                    raf = null;
+                    colEl.style.width = newW + 'px';
+                    table.style.width = (startTableW + (newW - startW)) + 'px';
+                });
+            }
+            function onUp() {
+                if (raf) cancelAnimationFrame(raf);
+                colEl.style.width = newW + 'px';
+                colWidths[col] = newW;
+                applyTableWidth();
+                saveWidths();
+                th.draggable = true;
+                handle.classList.remove('active');
+                document.body.classList.remove('resizing');
+                handle.removeEventListener('pointermove', onMove);
+                handle.removeEventListener('pointerup', onUp);
+                handle.removeEventListener('pointercancel', onUp);
+                try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+                // re-renderiza o corpo para aplicar a nova largura nas células
+                // (não é necessário: o <colgroup> já controla todas as linhas)
+            }
+            handle.addEventListener('pointermove', onMove);
+            handle.addEventListener('pointerup', onUp);
+            handle.addEventListener('pointercancel', onUp);
+        }
+
+        // ========= DRAG & DROP DE COLUNAS =========
+        let draggedCol = null;
+        function onColDragStart(e) {
+            const th = e.currentTarget;
+            if (th.getAttribute('draggable') !== 'true') { e.preventDefault(); return; }
+            draggedCol = th.getAttribute('data-col');
+            th.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedCol);
+        }
+        function onColDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (e.currentTarget.getAttribute('data-col') !== draggedCol) e.currentTarget.classList.add('drag-over');
+        }
+        function onColDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+        function onColDrop(e) {
+            e.preventDefault();
+            const targetCol = e.currentTarget.getAttribute('data-col');
+            e.currentTarget.classList.remove('drag-over');
+            if (!draggedCol || draggedCol === targetCol) return;
+            const fromIdx = visibleColumns.indexOf(draggedCol);
+            const toIdx = visibleColumns.indexOf(targetCol);
+            if (fromIdx === -1 || toIdx === -1) return;
+            visibleColumns.splice(fromIdx, 1);
+            visibleColumns.splice(toIdx, 0, draggedCol);
+            try {
+                localStorage.setItem(COL_ORDER_KEY, JSON.stringify(visibleColumns));
+                localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(visibleColumns));
+            } catch (err) {}
+            renderTableHeaders();
+            renderTableBody();
+        }
+        function onColDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('#main-table thead th').forEach(th => th.classList.remove('drag-over'));
+            draggedCol = null;
+        }
+
+        // ========= CORPO DA TABELA (com carregamento progressivo) =========
+        function rowHtml(row) {
+            const uid = escapeHtml(row._uid);
+            const isSelected = selectedRowIds.has(row._uid);
+            let h = `<tr class="border-b dynamic-border ${isSelected ? 'selected-row' : ''}" data-uid="${uid}">`;
+            h += `<td class="p-2 text-center col-checkbox"><input type="checkbox" ${isSelected ? 'checked' : ''} class="rounded cursor-pointer row-checkbox"></td>`;
+            visibleColumns.forEach(col => {
+                const v = escapeHtml(getDisplayValue(row, col));
+                h += `<td class="p-2" title="${v}">${v}</td>`;
+            });
+            h += `<td class="p-2 text-center"><div class="flex items-center justify-center gap-2">
+                    <button type="button" data-action="edit" title="Editar" class="text-blue-600 hover:text-blue-800 p-0.5"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" data-action="delete" title="Excluir" class="text-rose-600 hover:text-rose-800 p-0.5"><i class="fa-solid fa-trash"></i></button>
+                  </div></td></tr>`;
+            return h;
+        }
+
+        function renderTableBody() {
+            const tbody = document.getElementById('table-body');
+            renderedCount = 0;
+            if (filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${visibleColumns.length + 2}" class="p-8 text-center opacity-60" style="white-space:normal">Nenhum registro encontrado para os filtros selecionados.</td></tr>`;
+                updateRowsLabel();
+                updateCards();
+                syncSelectAllState();
+                return;
+            }
+            tbody.innerHTML = "";
+            document.getElementById('table-scroll').scrollTop = 0;
+            appendRows();
+            updateCards();
+            syncSelectAllState();
+        }
+
+        function appendRows() {
+            const tbody = document.getElementById('table-body');
+            const end = Math.min(renderedCount + PAGE_SIZE, filteredData.length);
+            let html = "";
+            for (let i = renderedCount; i < end; i++) html += rowHtml(filteredData[i]);
+            tbody.insertAdjacentHTML('beforeend', html);
+            renderedCount = end;
+            updateRowsLabel();
+        }
+
+        function updateRowsLabel() {
+            document.getElementById('rows-count-label').innerText =
+                `Exibindo ${renderedCount.toLocaleString('pt-BR')} de ${filteredData.length.toLocaleString('pt-BR')} registros filtrados (total ${rawData.length.toLocaleString('pt-BR')}) • ${visibleColumns.length}/${allColumns.length} colunas visíveis`;
+        }
+
+        // ========= CARDS =========
+        function updateCards() {
+            let targetRows = selectedRowIds.size ? rawData.filter(r => selectedRowIds.has(r._uid)) : filteredData;
+            document.getElementById('card-total-count').innerText = targetRows.length.toLocaleString('pt-BR');
+            document.getElementById('card-selected-count').innerText = `${selectedRowIds.size} selecionados`;
+            let b = 0, c = 0, k = 0;
+            targetRows.forEach(r => {
+  b += parseBRNumber(r['VALOR_BANCO']);
+  c += parseBRNumber(r['VALOR_CUSTEIO']);
+  k += parseBRNumber(r['VALOR_CAPITAL']);
+            });
+            document.getElementById('card-valor-banco').innerText = fmtBRL(b);
+            document.getElementById('card-valor-custeio').innerText = fmtBRL(c);
+  document.getElementById('card-valor-capital').innerText = fmtBRL(k);
+  document.getElementById('card-total-custeio-capital').innerText = fmtBRL(c + k);
+  }
+
+        // ========= SELEÇÃO =========
+        function toggleSelectAll(master) {
+            if (master.checked) filteredData.forEach(r => selectedRowIds.add(r._uid));
+            else filteredData.forEach(r => selectedRowIds.delete(r._uid));
+            document.querySelectorAll('#table-body tr[data-uid]').forEach(tr => {
+                const on = selectedRowIds.has(tr.getAttribute('data-uid'));
+                tr.classList.toggle('selected-row', on);
+                const cb = tr.querySelector('.row-checkbox');
+                if (cb) cb.checked = on;
+            });
+            updateCards();
+        }
+        function syncSelectAllState() {
+            const master = document.getElementById('select-all-checkbox');
+            if (!master) return;
+            if (!filteredData.length) { master.checked = false; master.indeterminate = false; return; }
+            let n = 0;
+            for (const r of filteredData) if (selectedRowIds.has(r._uid)) n++;
+            master.checked = n === filteredData.length;
+            master.indeterminate = n > 0 && n < filteredData.length;
+        }
+
+        // ========= EDIÇÃO E EXCLUSÃO =========
+        function findRowByUid(uid) { return rawData.find(r => r._uid === uid) || null; }
+
+        async function deleteRowFromSupabase(uid) {
+            const row = findRowByUid(uid);
+            if (!row) { alert("Linha não encontrada."); return; }
+            if (!confirm("Tem certeza que deseja excluir ESTE registro específico do Supabase?")) return;
+            try {
+                if (!row._pkField || row._pkValue === null || row._pkValue === undefined) {
+                    alert("Não foi possível identificar a chave única desta linha. Verifique se a tabela possui a coluna 'id'.");
+                    return;
+                }
+                const { error } = await supabaseClient.from(TABLE_NAME).delete().eq(row._pkField, row._pkValue);
+                if (error) throw error;
+                selectedRowIds.delete(uid);
+                toast("Registro excluído com sucesso!");
+                loadSupabaseData();
+            } catch (err) {
+                console.error("Erro ao excluir:", err);
+                alert("Erro ao excluir registro: " + err.message);
+            }
+        }
+
+        function openEditModalForRow(uid) {
+            const row = findRowByUid(uid);
+            if (!row) { alert("Linha não encontrada."); return; }
+            currentEditingRow = row;
+            let html = "";
+            allColumns.forEach(col => {
+                let val = row[col] !== undefined && row[col] !== null ? row[col] : "";
+                if (col === 'DATA') val = formatDateToBR(val);
+                const isId = col === 'ID';
+                html += `
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs font-bold opacity-80">${escapeHtml(col)}${isId ? ' (somente leitura)' : ''}</label>
+                        <input type="text" name="${escapeHtml(col)}" value="${escapeHtml(val)}" ${isId ? 'readonly' : ''}
+                            class="p-2 text-xs rounded-lg border dynamic-border ${isId ? 'bg-gray-100 cursor-not-allowed opacity-80' : 'bg-white/5'} focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>`;
+            });
+            document.getElementById('edit-form').innerHTML = html;
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+        function closeEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+            currentEditingRow = null;
+        }
+        async function saveEditRecord(event) {
+            event.preventDefault();
+            if (!currentEditingRow) { alert("Nenhuma linha selecionada para edição."); return; }
+            const formData = new FormData(document.getElementById('edit-form'));
+            const updatePayload = {};
+            allColumns.forEach(col => {
+                if (col === 'ID') return;
+                let val = formData.get(col);
+                if (col === 'DATA') val = formatBRToISO(val);
+                updatePayload[col.toLowerCase()] = val === "" ? null : val;
+            });
+            try {
+                if (!currentEditingRow._pkField || currentEditingRow._pkValue === null || currentEditingRow._pkValue === undefined) {
+                    alert("Não foi possível identificar a chave única desta linha.");
+                    return;
+                }
+                const { error } = await supabaseClient.from(TABLE_NAME).update(updatePayload).eq(currentEditingRow._pkField, currentEditingRow._pkValue);
+                if (error) throw error;
+                toast("Registro atualizado com sucesso!");
+                closeEditModal();
+                loadSupabaseData();
+            } catch (err) {
+                console.error("Erro ao atualizar:", err);
+                alert("Erro ao atualizar registro: " + err.message);
+            }
+        }
+
+        // ========= PAINEL DE COLUNAS =========
+        function openColumnsPanel(event) {
+            event.stopPropagation();
+            document.querySelectorAll('.columns-popover').forEach(el => el.remove());
+            const popover = document.createElement('div');
+            popover.className = `columns-popover fixed z-50 dynamic-card border shadow-2xl rounded-xl p-4 flex flex-col gap-3`;
+            popover._opener = event.currentTarget;
+            const rect = event.currentTarget.getBoundingClientRect();
+            popover.style.top = `${Math.max(8, Math.min(window.innerHeight - 420, rect.bottom + 5))}px`;
+            popover.style.left = `${Math.max(8, Math.min(window.innerWidth - 340, rect.left))}px`;
+            const visibleSet = new Set(visibleColumns);
+            popover.innerHTML = `
+                <div class="flex justify-between items-center border-b pb-2 dynamic-border">
+                    <span class="text-xs font-bold uppercase">Colunas Visíveis</span>
+                    <button onclick="this.closest('.columns-popover').remove()" class="text-gray-400 hover:text-red-500 font-bold">&times;</button>
+                </div>
+                <input type="text" placeholder="Pesquisar coluna..." id="col-search-input" class="p-2 text-xs rounded-lg border dynamic-border bg-white/5 outline-none">
+                <div class="flex gap-2 text-xs">
+                    <button type="button" onclick="toggleAllColumnsCheckboxes(true)" class="px-2 py-1 bg-black/5 hover:bg-black/10 rounded border dynamic-border">Marcar Todos</button>
+                    <button type="button" onclick="toggleAllColumnsCheckboxes(false)" class="px-2 py-1 bg-black/5 hover:bg-black/10 rounded border dynamic-border">Desmarcar Todos</button>
+                </div>
+                <div id="cols-list" class="flex flex-col gap-1.5 overflow-y-auto pr-1 flex-1">
+                    ${allColumns.map(col => `
+                        <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-black/5 p-1 rounded col-item-label">
+                            <input type="checkbox" value="${escapeHtml(col)}" ${visibleSet.has(col) ? 'checked' : ''} class="rounded col-cb">
+                            <span class="truncate" title="${escapeHtml(col)}">${escapeHtml(col)}</span>
+                        </label>`).join('')}
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t dynamic-border">
+                    <button type="button" onclick="resetColumnsToAll()" class="px-3 py-1.5 text-xs rounded border dynamic-border hover:bg-black/5 font-medium">Exibir Todas</button>
+                    <button type="button" onclick="applyColumnsSelection()" class="px-4 py-1.5 text-xs rounded dynamic-bg text-white font-medium shadow">Aplicar</button>
+                </div>`;
+            document.body.appendChild(popover);
+            popover.querySelector('#col-search-input').addEventListener('input', (e) => {
+                const term = normalizeText(e.target.value);
+                popover.querySelectorAll('.col-item-label').forEach(lbl => {
+                    lbl.style.display = normalizeText(lbl.innerText).includes(term) ? 'flex' : 'none';
+                });
+            });
+        }
+        function toggleAllColumnsCheckboxes(checked) {
+            document.querySelectorAll('.columns-popover .col-cb').forEach(cb => {
+                const lbl = cb.closest('.col-item-label');
+                if (lbl.style.display !== 'none') cb.checked = checked;
+            });
+        }
+        function applyColumnsSelection() {
+            const checked = [];
+            document.querySelectorAll('.columns-popover .col-cb').forEach(cb => { if (cb.checked) checked.push(cb.value); });
+            if (!checked.length) { alert("Selecione pelo menos uma coluna para exibir."); return; }
+            let newVisible = visibleColumns.filter(c => checked.includes(c));
+            checked.forEach(c => { if (!newVisible.includes(c)) newVisible.push(c); });
+            if (newVisible.includes("ID")) newVisible = ["ID", ...newVisible.filter(c => c !== "ID")];
+            visibleColumns = newVisible;
+            try {
+                localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(visibleColumns));
+                localStorage.setItem(COL_ORDER_KEY, JSON.stringify(visibleColumns));
+            } catch (e) {}
+            document.querySelectorAll('.columns-popover').forEach(el => el.remove());
+            renderTableHeaders();
+            renderTableBody();
+        }
+        function resetColumnsToAll() {
+            visibleColumns = [...allColumns];
+            try {
+                localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(visibleColumns));
+                localStorage.setItem(COL_ORDER_KEY, JSON.stringify(visibleColumns));
+            } catch (e) {}
+            document.querySelectorAll('.columns-popover').forEach(el => el.remove());
+            renderTableHeaders();
+            renderTableBody();
+        }
+
+        // ========= PESQUISA GERAL =========
+        function applyGlobalSearch(value) {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                globalSearchTerm = normalizeText(value || "");
+                applyFiltersAndRender();
+            }, 180);
+        }
+        function clearGlobalSearch() {
+            const input = document.getElementById("global-search");
+            if (input) input.value = "";
+            globalSearchTerm = "";
+            applyFiltersAndRender();
+        }
+
+        function updateFilterSummary() {
+            const cols = Object.keys(activeFilters).filter(col => activeFilters[col] && activeFilters[col].size > 0);
+            const countEl = document.getElementById("active-filter-count");
+            const strip = document.getElementById("active-filter-strip");
+            if (countEl) countEl.textContent = `${cols.length} ${cols.length === 1 ? "filtro ativo" : "filtros ativos"}`;
+            if (!strip) return;
+            const chips = cols.map(col => `<span class="filter-chip"><i class="fa-solid fa-filter"></i>${escapeHtml(col)}<button type="button" data-clear-filter="${escapeHtml(col)}" title="Remover filtro"><i class="fa-solid fa-xmark"></i></button></span>`);
+            if (globalSearchTerm) chips.unshift(`<span class="filter-chip"><i class="fa-solid fa-magnifying-glass"></i>Pesquisa geral<button type="button" onclick="clearGlobalSearch()" title="Limpar pesquisa"><i class="fa-solid fa-xmark"></i></button></span>`);
+            strip.innerHTML = chips.length ? chips.join("") : `<span class="text-slate-500"><i class="fa-regular fa-lightbulb mr-1"></i>Dica: use a pesquisa geral ou o ícone de filtro em cada coluna.</span>`;
+            strip.querySelectorAll('[data-clear-filter]').forEach(b => b.addEventListener('click', () => clearColumnFilter(b.getAttribute('data-clear-filter'))));
+        }
+
+        // ========= FILTROS POR COLUNA =========
+        function openFilterDropdown(event, column) {
+            event.stopPropagation();
+            document.querySelectorAll('.filter-popover').forEach(el => el.remove());
+
+            const uniqueSet = new Set();
+            rawData.forEach(row => uniqueSet.add(getFormattedValue(row, column)));
+            const uniqueValues = Array.from(uniqueSet).sort((a, b) => {
+                if (a === "(Vazio)") return 1;
+                if (b === "(Vazio)") return -1;
+                if (column === 'ID') return Number(a) - Number(b);
+                return a.localeCompare(b, 'pt-BR', { numeric: true });
+            });
+            const activeSet = activeFilters[column] ? activeFilters[column] : new Set(uniqueValues);
+
+            const popover = document.createElement('div');
+            popover.className = `filter-popover fixed z-50 dynamic-card border shadow-2xl rounded-xl p-4 flex flex-col gap-3`;
+            popover._opener = event.currentTarget;
+            const rect = event.currentTarget.getBoundingClientRect();
+            popover.style.top = `${Math.max(8, Math.min(window.innerHeight - 420, rect.bottom + 5))}px`;
+            popover.style.left = `${Math.max(8, Math.min(window.innerWidth - 340, rect.left))}px`;
+
+            popover.innerHTML = `
+                <div class="flex justify-between items-center border-b pb-2 dynamic-border">
+                    <span class="text-xs font-bold uppercase truncate max-w-[200px]">Filtrar: ${escapeHtml(column)}</span>
+                    <button class="fp-close text-gray-400 hover:text-red-500 font-bold">&times;</button>
+                </div>
+                <input type="text" placeholder="Digite para filtrar em tempo real..." id="filter-search-input" class="p-2 text-xs rounded-lg border dynamic-border bg-white/5 outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="flex gap-2 text-xs">
+                    <button type="button" class="fp-all px-2 py-1 bg-black/5 hover:bg-black/10 rounded border dynamic-border">Marcar Visíveis</button>
+                    <button type="button" class="fp-none px-2 py-1 bg-black/5 hover:bg-black/10 rounded border dynamic-border">Desmarcar Visíveis</button>
+                </div>
+                <div id="filter-checkboxes-list" class="flex flex-col gap-1.5 overflow-y-auto pr-1 flex-1">
+                    ${uniqueValues.map(val => `
+                        <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-black/5 p-1 rounded filter-item-label" data-value="${escapeHtml(normalizeText(val))}">
+                            <input type="checkbox" value="${escapeHtml(val)}" ${activeSet.has(val) ? 'checked' : ''} class="rounded filter-cb">
+                            <span class="truncate" title="${escapeHtml(val)}">${escapeHtml(val)}</span>
+                        </label>`).join('')}
+                </div>
+                <div class="flex items-center justify-between gap-2 pt-2 border-t dynamic-border">
+                    <span class="text-[10px] text-slate-500"><i class="fa-solid fa-bolt mr-1"></i>Aplicação automática</span>
+                    <div class="flex gap-2">
+                        <button type="button" class="fp-clear px-3 py-1.5 text-xs rounded border dynamic-border hover:bg-black/5 font-medium">Limpar</button>
+                        <button type="button" class="fp-apply px-4 py-1.5 text-xs rounded dynamic-bg text-white font-medium shadow">Aplicar filtro</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(popover);
+
+            const setVisible = (checked) => popover.querySelectorAll('.filter-item-label').forEach(lbl => {
+                if (lbl.style.display !== 'none') lbl.querySelector('.filter-cb').checked = checked;
+            });
+            popover.querySelector('.fp-close').addEventListener('click', () => popover.remove());
+            popover.querySelector('.fp-all').addEventListener('click', () => { setVisible(true); syncColumnFilter(column, popover); });
+            popover.querySelector('.fp-none').addEventListener('click', () => { setVisible(false); syncColumnFilter(column, popover); });
+            popover.querySelector('.fp-clear').addEventListener('click', () => clearColumnFilter(column));
+            popover.querySelectorAll('.filter-cb').forEach(cb => {
+                cb.addEventListener('change', () => syncColumnFilter(column, popover));
+            });
+            popover.querySelector('.fp-apply').addEventListener('click', () => {
+                syncColumnFilter(column, popover);
+                popover.remove();
+            });
+
+            const searchInput = popover.querySelector('#filter-search-input');
+            searchInput.focus();
+            searchInput.addEventListener('input', (e) => {
+                const term = normalizeText(e.target.value);
+                popover.querySelectorAll('.filter-item-label').forEach(lbl => {
+                    const matches = term === "" || lbl.getAttribute('data-value') === term;
+                    lbl.style.display = matches ? 'flex' : 'none';
+                    lbl.querySelector('.filter-cb').checked = matches;
+                });
+                syncColumnFilter(column, popover);
+            });
+        }
+
+        function syncColumnFilter(column, popover) {
+            const cbs = popover.querySelectorAll('.filter-cb');
+            const selectedSet = new Set();
+            cbs.forEach(cb => { if (cb.checked) selectedSet.add(cb.value); });
+            if (selectedSet.size === cbs.length) delete activeFilters[column];
+            else activeFilters[column] = selectedSet;
+            renderTableHeaders();
+            applyFiltersAndRender();
+        }
+
+        function applyColumnFilter(column, popover) {
+            syncColumnFilter(column, popover);
+            popover.remove();
+        }
+        function clearColumnFilter(column) {
+            delete activeFilters[column];
+            document.querySelectorAll('.filter-popover').forEach(el => el.remove());
+            renderTableHeaders();
+            applyFiltersAndRender();
+        }
+        function clearAllFilters() {
+            activeFilters = {};
+            renderTableHeaders();
+            applyFiltersAndRender();
+        }
+
+        function applyFiltersAndRender() {
+            const filterCols = Object.keys(activeFilters).filter(c => activeFilters[c]);
+            let data = rawData.filter(row => {
+                for (const col of filterCols) {
+                    if (!activeFilters[col].has(getFormattedValue(row, col))) return false;
+                }
+                if (globalSearchTerm && !row._search.includes(globalSearchTerm)) return false;
+                return true;
+            });
+            filteredData = applySort(data);
+            renderTableBody();
+            updateFilterSummary();
+        }
+
+        // ========= EXPORTAÇÕES =========
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('Falha ao carregar ' + src));
+                document.head.appendChild(s);
+            });
+        }
+        async function ensureLib(check, urls) {
+            if (check()) return;
+            for (const u of urls) {
+                try { await loadScript(u); if (check()) return; } catch (e) { console.warn(e.message); }
+            }
+            throw new Error('Não foi possível carregar a biblioteca de exportação. Verifique sua conexão com a internet e tente novamente.');
+        }
+        const hasXLSX = () => typeof window.XLSX !== 'undefined' && window.XLSX.utils;
+        const hasPDF = () => !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && typeof window.jspdf.jsPDF.API.autoTable === 'function');
+
+        function parseExportNumber(value) {
+            if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+            if (value === null || value === undefined || value === '') return 0;
+            let text = String(value).trim().replace(/R\$\s?/g, '');
+            // "1.234,56" (BR) -> 1234.56 ; "1234.56" (banco) permanece
+            if (text.includes(',')) text = text.replace(/\./g, '').replace(',', '.');
+            text = text.replace(/[^\d.-]/g, '');
+            const n = Number(text);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        // Linhas marcadas (se houver) ou todas as filtradas
+        function getRowsForExport() {
+            if (selectedRowIds.size > 0) {
+                return applySort(rawData.filter(r => selectedRowIds.has(r._uid)));
+            }
+            return filteredData;
+        }
+        function exportCellText(row, col) {
+            if (col === 'DATA') return formatDateToBR(row[col]);
+            const v = row[col];
+            return v === null || v === undefined ? '' : String(v);
+        }
+        function todayStamp() {
+            const d = new Date();
+            const p = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+        }
+        function setBusy(id, busy) {
+            const b = document.getElementById(id);
+            if (b) b.disabled = busy;
+        }
+
+        async function exportToExcel() {
+            setBusy('btn-excel', true);
+            try {
+                const rows = getRowsForExport();
+                if (!rows.length) { toast("Não há dados para exportar.", true); return; }
+                await ensureLib(hasXLSX, [
+                    'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js',
+                    'https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js',
+                    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+                ]);
+
+                const headers = [...visibleColumns];
+                const aoa = rows.map(row => headers.map(col =>
+                    VALUE_COLUMNS.includes(col) ? parseExportNumber(row[col]) : exportCellText(row, col)));
+                const totals = headers.map((col, i) => VALUE_COLUMNS.includes(col)
+                    ? rows.reduce((s, r) => s + parseExportNumber(r[col]), 0)
+                    : (i === 0 ? 'TOTAL GERAL' : ''));
+
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...aoa, totals]);
+                const headerStyle = { fill: { fgColor: { rgb: '173F78' } }, font: { color: { rgb: 'FFFFFF' }, bold: true }, alignment: { horizontal: 'center' } };
+
+                headers.forEach((h, c) => {
+                    const hc = ws[XLSX.utils.encode_cell({ r: 0, c })];
+                    if (hc) hc.s = headerStyle;
+                    if (VALUE_COLUMNS.includes(h)) {
+                        for (let r = 1; r <= rows.length + 1; r++) {
+                            const cell = ws[XLSX.utils.encode_cell({ r, c })];
+                            if (cell) cell.z = '#,##0.00';
+                        }
+                    }
+                    const tc = ws[XLSX.utils.encode_cell({ r: rows.length + 1, c })];
+                    if (tc) tc.s = { font: { bold: true }, fill: { fgColor: { rgb: 'E2E8F0' } } };
+                });
+                ws['!cols'] = headers.map(h => ({ wch: Math.max(12, Math.min(40, Math.round(getColWidth(h) / 7))) }));
+                ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Backup Cartao Manut');
+                XLSX.writeFile(wb, `backup_cartao_manut_${todayStamp()}.xlsx`);
+                toast(`Excel gerado com ${rows.length.toLocaleString('pt-BR')} registro(s)${selectedRowIds.size ? ' selecionado(s)' : ''}.`);
+            } catch (err) {
+                console.error("Erro ao exportar Excel:", err);
+                toast("Erro ao exportar Excel: " + err.message, true, 6000);
+            } finally {
+                setBusy('btn-excel', false);
+            }
+        }
+
+        async function exportToPDF() {
+            setBusy('btn-pdf', true);
+            try {
+                const rows = getRowsForExport();
+                if (!rows.length) { toast("Não há dados para exportar.", true); return; }
+                await ensureLib(() => !!(window.jspdf && window.jspdf.jsPDF), [
+                    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+                    'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+                ]);
+                await ensureLib(hasPDF, [
+                    'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
+                    'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'
+                ]);
+
+                const { jsPDF } = window.jspdf;
+
+                const head = [visibleColumns];
+                const body = rows.map(row => visibleColumns.map(col =>
+                    VALUE_COLUMNS.includes(col) ? fmtBRL(parseExportNumber(row[col])) : exportCellText(row, col).replace(/\s+/g, ' ').trim()));
+                const totals = visibleColumns.map((col, i) => VALUE_COLUMNS.includes(col)
+                    ? fmtBRL(rows.reduce((s, r) => s + parseExportNumber(r[col]), 0))
+                    : (i === 0 ? 'TOTAL GERAL' : ''));
+
+                // ---- Compactação: cada coluna ganha a largura exata do maior texto (sem quebra de linha) ----
+                const FONT = 6.5;          // tamanho da fonte da tabela
+                const PAD_X = 2.5;         // espaço lateral da célula
+                const PAD_Y = 1.4;         // espaço vertical da célula (linhas bem baixas)
+                const MAX_COL_W = 420;     // segurança: texto absurdamente longo é cortado com "…"
+                const measurer = new jsPDF({ unit: 'pt' });
+                const colW = visibleColumns.map((col, i) => {
+                    measurer.setFont('helvetica', 'bold'); measurer.setFontSize(FONT);
+                    let max = measurer.getTextWidth(String(col));
+                    measurer.setFont('helvetica', 'normal');
+                    for (let r = 0; r < body.length; r++) {
+                        const w = measurer.getTextWidth(body[r][i]);
+                        if (w > max) max = w;
+                    }
+                    measurer.setFont('helvetica', 'bold');
+                    const wt = measurer.getTextWidth(totals[i]);
+                    if (wt > max) max = wt;
+                    return Math.min(MAX_COL_W, Math.ceil(max + PAD_X * 2 + 3));
+                });
+                const tableW = colW.reduce((a, b) => a + b, 0);
+                const MARGIN = 20;
+                // A página é feita sob medida: larga o suficiente para todas as colunas numa linha só
+                const pageW = Math.max(842, Math.ceil(tableW + MARGIN * 2));
+                const pageH = 595;
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [pageW, pageH] });
+
+                const columnStyles = {};
+                visibleColumns.forEach((col, i) => {
+                    columnStyles[i] = { cellWidth: colW[i] };
+                    if (VALUE_COLUMNS.includes(col)) columnStyles[i].halign = 'right';
+                });
+
+                doc.setFontSize(14);
+                doc.text('Relatório - Backup Cartão Manutenção', 30, 30);
+                doc.setFontSize(9);
+                doc.text(`${rows.length.toLocaleString('pt-BR')} registro(s)${selectedRowIds.size ? ' selecionado(s)' : ''} • Gerado em ${new Date().toLocaleString('pt-BR')}`, 30, 44);
+
+                doc.autoTable({
+                    head, body: [...body, totals],
+                    startY: 54,
+                    margin: { left: MARGIN, right: MARGIN, bottom: 28 },
+                    tableWidth: tableW,
+                    styles: { fontSize: FONT, cellPadding: { top: PAD_Y, bottom: PAD_Y, left: PAD_X, right: PAD_X }, overflow: 'ellipsize', valign: 'middle', lineWidth: 0 },
+                    headStyles: { fillColor: [23, 63, 120], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [245, 248, 252] },
+                    columnStyles,
+                    showHead: 'everyPage',
+                    didParseCell: (d) => {
+                        if (d.section === 'body' && d.row.index === body.length) {
+                            d.cell.styles.fontStyle = 'bold';
+                            d.cell.styles.fillColor = [226, 232, 240];
+                            d.cell.styles.textColor = [0, 0, 0];
+                        }
+                    },
+                    didDrawPage: () => {
+                        const w = doc.internal.pageSize.getWidth();
+                        const h = doc.internal.pageSize.getHeight();
+                        doc.setFontSize(8);
+                        doc.text(`Página ${doc.internal.getNumberOfPages()}`, w - 70, h - 12);
+                    }
+                });
+
+                doc.save(`backup_cartao_manut_${todayStamp()}.pdf`);
+                toast(`PDF gerado com ${rows.length.toLocaleString('pt-BR')} registro(s)${selectedRowIds.size ? ' selecionado(s)' : ''}.`);
+            } catch (err) {
+                console.error("Erro ao exportar PDF:", err);
+                toast("Erro ao exportar PDF: " + err.message, true, 6000);
+            } finally {
+                setBusy('btn-pdf', false);
+            }
+        }
+    </script>
+</body>
+</html>
